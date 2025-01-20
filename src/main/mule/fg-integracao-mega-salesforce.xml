@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="fg-integracao-mega-salesforceFlow" doc:id="8f13b770-edcf-4691-8150-25d18d82cd09" >
+		<scheduler doc:name="Scheduler" doc:id="3444d884-0b0e-4ee9-8e66-c79d4b28b1c4" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="7" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="071ef9fe-92ac-496b-af5a-49b07397a088" message="START FLOW - SALES MIRROR"/>
+		<flow-ref doc:name="Upsert Sales Mirror" doc:id="dad2dc11-2eb9-458b-9526-c868d88b4cfb" name="upsert-sales-mirrorFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="44412005-2b87-4c61-ab17-300723b8fab4" message="START FLOW - ADDRESS TYPES" />
+		<flow-ref doc:name="Upsert Address Types" doc:id="25ea54da-944b-4b6a-b413-f035e9994e79" name="upsert-address-typesFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="d9d926b8-8578-471b-b4aa-8a8c465ba5fe" message="FLOW START - COUNTRIES"/>
+		<flow-ref doc:name="Upsert Countries" doc:id="68719d31-ad07-4e64-821f-4d2cf70d7f43" name="upsert-countryFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="86b98a62-282d-4d51-889c-2d59108b9791" message="FLOW START - FINANCIAL RATIOS" />
+		<flow-ref doc:name="Upsert Financial Ratios" doc:id="ad8a4d3d-c0f4-4b08-820d-71a400432214" name="upsert-financial-ratiosFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="33fad081-0a8d-4be7-9833-42b160b6849d" message="FLOW START - Roles" />
+		<flow-ref doc:name="Upsert Roles" doc:id="678377d4-550c-4223-9a9b-ea36a0e14cb1" name="upsert-rolesFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="511bd391-b787-410d-9c8c-af0a4bd13b73" message="FLOW START - Series" />
+		<flow-ref doc:name="Upsert Series" doc:id="338ba5aa-fe65-4c35-9f0d-dda875e26b9f" name="upsert-serieFlow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="95f2f2fc-3e88-43a4-b6ca-79107d5ac177" message="FINISHED" />
+	</flow>
+</mule>

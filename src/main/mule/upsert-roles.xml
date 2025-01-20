@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="upsert-rolesFlow" doc:id="0547490a-be9f-42b5-be10-6dbe921f3966" >
+		<wsc:consume doc:name="Consume" doc:id="2bb6da15-a5b0-48ae-b5e1-7322c8751c29" config-ref="Web_Service_Consumer_Config" operation="ListaCargos">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[import p from Mule
+output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaCargos: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="f0ecfee8-b8a6-4ab3-b281-f62cbd4514fc" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="9bf7d89d-1e0f-4f4c-a769-a2f84deeccfe" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.body.ListaCargosResponse.ListaCargosResult.*Cargo map (roles,indexRole) -> {
+	Code__c:roles.CAR_IN_CODIGO,
+	Name:roles.CAR_ST_NOME,
+	IdIntegration__c:roles.IdIntegracao
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="8ae4cbdc-bc14-4581-aa5c-bdf41998fc5a" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<foreach doc:name="For Each" doc:id="b2ffd394-bbe3-4ba7-8a3d-ea99edd829dd" batchSize="100" collection="#[payload]">
+			<salesforce:upsert objectType="Role__c" doc:name="Upsert" doc:id="76892a97-c749-4c4c-8342-2c582632e312" config-ref="Salesforce_Config" externalIdFieldName="Code__c"/>
+			<logger level="INFO" doc:name="Logger" doc:id="2f07418d-3c1f-4d30-a9cc-5f38a1b200c6" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		</foreach>
+	</flow>
+</mule>

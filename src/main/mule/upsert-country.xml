@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="upsert-countryFlow" doc:id="b3c06f32-6a9e-4fd4-a598-5b0606d530a3" >
+		<wsc:consume doc:name="Consume" doc:id="e19a9edd-08d0-4536-8e9b-d0d18c6379a2" config-ref="Web_Service_Consumer_Config" operation="ListaPaises">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[import p from Mule
+output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaPaises: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="4750ba99-4dd1-41ab-a67b-132642df43a4" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="7914c85a-ce9d-45b7-8620-f333aa7bc72b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+
+payload.body.ListaPaisesResponse.ListaPaisesResult.*Pais map (pais,indexPais) -> {
+	Name:pais.PA_ST_NOME,
+	Code__c:pais.PA_IN_CODIGO as Number,
+	Nationality__c:pais.PA_ST_NACIONALIDADE,
+	Acronym__c:pais.PA_ST_SIGLA
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="58bf2197-6c2d-4c93-9689-879a1c6c9e61" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]" />
+		<foreach doc:name="For Each" doc:id="99196d48-3269-45aa-9a2f-7bbec207b878" collection="#[payload]" batchSize="100">
+			<salesforce:upsert doc:name="Upsert" doc:id="fbde50f2-08d1-44db-b191-6198559f0d7a" config-ref="Salesforce_Config" objectType="Country__c" externalIdFieldName="Code__c" />
+			<logger level="INFO" doc:name="Logger1" doc:id="6839fef5-b71b-45bf-8f20-3ac6cb09f779" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]" />
+		</foreach>
+	</flow>
+</mule>

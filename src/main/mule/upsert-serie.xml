@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="upsert-serieFlow" doc:id="6addd03a-82d0-4e9b-81db-83a08604f82e" >
+		<scheduler doc:name="Scheduler" doc:id="0a10cdb6-88eb-4118-b879-c699ce660c31" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="7" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<wsc:consume doc:name="Consume" doc:id="00221930-f690-4dc3-92a1-f2d1d8ce56a0" config-ref="Web_Service_Consumer_Config" operation="ListaTiposSeries">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[import p from Mule
+output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaTiposSeries: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="a147f98f-068f-456d-9fcb-d55a0a8dc926" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="5e90b8e7-eb06-4089-ba23-b91b43952637" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.body.ListaTiposSeriesResponse.ListaTiposSeriesResult.*TipoSerie map (serie,indexSerie) -> {
+	Name:serie.Codigo,
+	Descricao__c:serie.Descricao,
+	Tipo__c:serie.Tipo,
+	Receita__c:serie.Receita,
+	Intervalo__c:serie.Intervalo
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="337567bc-2dd5-41ae-8b91-fb7bad2952e5" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<foreach doc:name="For Each" doc:id="364cd619-c82b-48f6-a633-ceaecb51c08e" collection="#[payload]" batchSize="100">
+			<salesforce:upsert doc:name="Upsert" doc:id="b3aac619-95d2-4c7b-a3cc-f8199d02f27c" config-ref="Salesforce_Config" objectType="TiposSeries__c" externalIdFieldName="Name"/>
+			<logger level="INFO" doc:name="Logger" doc:id="ada780b4-c1fd-4ce7-b2ec-a95a44986c83" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		</foreach>
+	</flow>
+</mule>

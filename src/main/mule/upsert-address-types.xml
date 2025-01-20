@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<flow name="upsert-address-typesFlow" doc:id="d6dcd994-36f3-46e5-bfe4-fd1362076935" >
+		<wsc:consume doc:name="Consume" doc:id="7c733758-8d5d-44c7-a49d-3ae97708e037" config-ref="Web_Service_Consumer_Config" operation="ListaTiposLogradouros">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaTiposLogradouros: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="e9452620-8ae2-43be-976d-d0ae01225f02" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="4ac296c3-5d9d-461f-8d7e-40164ac1f245" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+ns ns0 http://www.civilweb.com.br/
+---
+payload.body.ns0#ListaTiposLogradourosResponse.ns0#ListaTiposLogradourosResult.*ns0#TipoLogradouro map ( tipoLogradouro , indexOfTipoLogradouro ) -> {
+	Name: tipoLogradouro.ns0#Nome,
+	Code__c: tipoLogradouro.ns0#Codigo
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="c8301a25-cb5c-4105-bfc8-33f920ec973d" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<foreach doc:name="For Each" doc:id="52ec0b2d-ebff-46d8-b843-6f2bdca81c30" collection="payload" batchSize="100">
+			<salesforce:upsert objectType="AddressType__c" externalIdFieldName="Code__c" doc:name="Upsert" doc:id="ea510138-58ad-40b2-99b7-c26c7452b630" config-ref="Salesforce_Config" />
+			<logger level="INFO" doc:name="Logger2" doc:id="f4c0c26d-5c7e-420d-93ab-df6c7f4c5b6c" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		</foreach>
+	</flow>
+</mule>

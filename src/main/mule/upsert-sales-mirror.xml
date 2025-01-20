@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="upsert-sales-mirrorFlow" doc:id="8f13b770-edcf-4691-8150-25d18d82cd09" >
+		<wsc:consume operation="ListaEspelhoDeVendas" doc:name="Consume" doc:id="fabb6a61-f4cb-4785-91f6-23d4a8687260" config-ref="Web_Service_Consumer_Config">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[import p from Mule
+output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaEspelhoDeVendas: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="f2adee59-cc27-41ad-a604-9ed7f1d2038a" message="#[%dw 2.0&#10;output application/json&#10;ns cw http://www.civilweb.com.br/&#10;---&#10;payload&#10;	.body&#10;	.cw#ListaEspelhoDeVendasResponse&#10;	.cw#ListaEspelhoDeVendasResult]"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="d2d4070f-3ec8-446d-8432-736d0ba5cbae" variableName="originalPayload"/>
+		<ee:transform doc:name="Transform Message" doc:id="1b10a7ed-4f3e-4875-8431-1bcb295de7a4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import withMaxSize from dw::core::Strings
+output application/java
+ns cw http://www.civilweb.com.br/
+---
+payload.body.cw#ListaEspelhoDeVendasResponse.cw#ListaEspelhoDeVendasResult.*cw#EMPREENDIMENTO map ( empreendimento, index) -> {
+	CodigoEmpreendimento__c: empreendimento.cw#CODIGO as Number,
+	Name: empreendimento.cw#NOME withMaxSize 80,
+	Filial__c: "0018800000dSxBhAAK",
+	CNPJ__c: "62884158000129"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="939db026-73bb-4a1d-980e-b64dc18be60c" collection="#[payload]" batchSize="100">
+			<salesforce:upsert objectType="Empreendimento__c" externalIdFieldName="CodigoEmpreendimento__c" doc:name="Empreendimento__c" doc:id="f6396062-138f-4b6d-8ce3-62c474507f8a" config-ref="Salesforce_Config" />
+			<logger level="INFO" doc:name="Logger" doc:id="13203338-5df2-4e2d-8ea1-72df6a428cd4" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="bed49c10-4647-4484-8872-4b470d652d50" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import withMaxSize from dw::core::Strings
+ns ns0 http://www.civilweb.com.br/
+
+output application/javavar empreendimentosComBloco = vars	.originalPayload	.body	.ns0#ListaEspelhoDeVendasResponse	.ns0#ListaEspelhoDeVendasResult	.*ns0#EMPREENDIMENTO filter (!isEmpty($.ns0#BLOCOS))
+
+var blocosAtualizados = flatten(flatten(empreendimentosComBloco map (emp) -> {
+	BLOCOS: emp.*ns0#BLOCOS map (bloco) -> 
+		bloco ++ {"CODIGO_EMPREENDIMENTO": emp.ns0#CODIGO}
+}.*BLOCOS))
+
+---
+//blocosAtualizados
+ blocosAtualizados map (bloco) -> {
+	ChaveExterna__c: bloco.ns0#CODIGO,
+	Name: bloco.ns0#NOME withMaxSize 80,
+	Empreendimento__r: {
+		"type": "Empreendimento__c",
+ 		"CodigoEmpreendimento__c": bloco.CODIGO_EMPREENDIMENTO as Number
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="02e92364-31ab-4cd8-80fc-87c6bf5be493" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<foreach doc:name="For Each" doc:id="eee495f9-b1c6-462c-b67e-afafb2177028" collection="#[payload]" batchSize="100">
+			<salesforce:upsert doc:name="Bloco__c" doc:id="8b6f3d8b-4904-4662-9d72-6e0480b1708c" config-ref="Salesforce_Config" objectType="Bloco__c" externalIdFieldName="ChaveExterna__c" />
+			<logger level="INFO" doc:name="Logger" doc:id="309fa321-641b-4bcb-b752-fb01d32d61e1" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		</foreach>
+		<ee:transform doc:name="Transform Message1" doc:id="e80709e4-5ecd-489e-8e91-43dee266e2c6">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import withMaxSize, substringAfter, remove, replaceAll, substringBefore from dw::core::Strings
+
+ns ns0 http://www.civilweb.com.br/
+output application/java
+var empreendimentosComBloco = vars.originalPayload.body.ns0#ListaEspelhoDeVendasResponse.ns0#ListaEspelhoDeVendasResult.*ns0#EMPREENDIMENTO filter (!isEmpty($.ns0#BLOCOS))
+var blocosAtualizados = flatten(flatten(empreendimentosComBloco map (emp) -> {
+	BLOCOS: emp.*ns0#BLOCOS map (bloco) -> 
+		bloco ++ {
+		"CODIGO_EMPREENDIMENTO": emp.ns0#CODIGO
+	}
+}.*BLOCOS))
+var blocosComUnidades = blocosAtualizados filter (!isEmpty($.ns0#UNIDADES))
+var unidadesAtualizadas = flatten(flatten(blocosComUnidades map (bloco) -> {
+	UNIDADES: bloco.*ns0#UNIDADES map (unidade) -> 
+		unidade ++ {
+		"CODIGO_BLOCO": bloco.ns0#CODIGO,
+		"CODIGO_EMPREENDIMENTO": bloco.CODIGO_EMPREENDIMENTO
+	}
+}.*UNIDADES))
+---
+//unidadesAtualizadas
+unidadesAtualizadas map (unidade) -> {
+	Numero__c: unidade.ns0#CODIGO as Number,
+	Name: unidade.ns0#NOME_CODIGO withMaxSize 80,
+	ProductCode: unidade.ns0#CODIGO,
+	PrecoBase__c: replaceAll(substringAfter(unidade.ns0#VALOR, " ") remove ".", ",", ".") as Number,
+	Status__c: unidade.ns0#STATUS,
+	AreaPrivativa__c: replaceAll(substringBefore(unidade.ns0#AREA_PRIVATIVA, " "), ",", ".") as Number,
+	ValorM2__c: replaceAll(substringAfter(unidade.ns0#VALOR_M2, " ") remove ".", ",", ".") as Number,
+	Tipologia__c: unidade.ns0#TIPOLOGIA,
+	Empreendimento__r: {
+		"type": "Empreendimento__c",
+		"CodigoEmpreendimento__c": unidade.CODIGO_EMPREENDIMENTO as Number
+	},
+	Bloco__r: {
+		"type": "Bloco__c",
+		"ChaveExterna__c": unidade.CODIGO_BLOCO
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger4" doc:id="d62a5b11-11c9-4846-9c6e-30888d029d2c" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<foreach doc:name="For Each" doc:id="0cb16242-fd2b-4275-ab08-3558c5d1f7b0" collection="#[payload]" batchSize="100">
+			<salesforce:upsert doc:name="Product2" doc:id="345fdee8-74ce-42e7-b5a1-14e55964637f" config-ref="Salesforce_Config" objectType="Product2" externalIdFieldName="Numero__c" />
+			<logger level="INFO" doc:name="Logger2" doc:id="566572be-db78-48d1-b9cd-6129ba249426" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		</foreach>
+	</flow>
+</mule>

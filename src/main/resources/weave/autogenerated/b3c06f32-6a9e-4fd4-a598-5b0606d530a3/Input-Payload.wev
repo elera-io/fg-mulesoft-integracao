@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_b3c06f32_6a9e_4fd4_a598_5b0606d530a3_Input_Payload = Array<{|  Name: String | Null,   Code__c: String | Null|}> | Null
+

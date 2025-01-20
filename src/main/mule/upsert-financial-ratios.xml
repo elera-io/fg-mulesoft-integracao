@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="upsert-financial-ratiosFlow" doc:id="05611f5d-fa35-4c1b-99ab-a87d91665938" >
+		<wsc:consume doc:name="Consume" doc:id="ab328bd1-c229-45ed-85a7-7748a2d4fb09" config-ref="Web_Service_Consumer_Config" operation="ListaIndicesFinanceiros">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[import p from Mule
+output application/xml
+ns cw http://www.civilweb.com.br/
+---
+{
+	cw#ListaIndicesFinanceiros: {
+		cw#Login: p("secure::mega.username"),
+		cw#Senha: p("secure::mega.password")
+	}
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<logger level="INFO" doc:name="Logger" doc:id="f342855e-565e-4f19-9c07-3393f1b1b441" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="36859087-081f-4a40-8c67-44a7f4733e73" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.body.ListaIndicesFinanceirosResponse.ListaIndicesFinanceirosResult.*IndiceFinanceiro map (financialRatios,indexFinancial) -> {
+	Codigo__c:financialRatios.IND_IN_CODIGO,
+	Name:financialRatios.IND_ST_NOME
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b333ee89-4db2-4c30-965d-c2958709c7f9" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		<foreach doc:name="For Each" doc:id="2cecf974-d6d9-4af8-a128-2ae4599f83b9" collection="#[payload]" batchSize="100">
+			<salesforce:upsert doc:name="Upsert" doc:id="cca72219-d0d6-4d7b-81f2-2ce46d1f283e" config-ref="Salesforce_Config" objectType="IndiceFinanceiro__c" externalIdFieldName="Name"/>
+			<logger level="INFO" doc:name="Logger" doc:id="519954f3-a355-45bd-828b-d0ec3db0721e" message="#[%dw 2.0&#10;output application/json&#10;---&#10;&#10;payload]"/>
+		</foreach>
+	</flow>
+</mule>

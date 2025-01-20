@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<global-property doc:name="Global Property" doc:id="95ead753-34fd-45bd-ae40-9f65d1b4c3db" name="env" value="dev9" />
+	<configuration-properties doc:name="Configuration properties" doc:id="96fa1aff-764a-458d-a5d4-b91c6233af0c" file="${env}.secure.properties" />
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="d265eeb5-9387-47c5-be68-bb4f71ea8cc4" >
+		<salesforce:basic-connection username="${secure::salesforce.username}" password="${secure::salesforce.password}" securityToken="${secure::salesforce.securityToken}" url="${secure::salesforce.authURL}" />
+	</salesforce:sfdc-config>
+	<wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="c3f87108-1b64-4c8e-9f30-f9b152d40eb6" >
+		<wsc:connection wsdlLocation="${secure::mega.wsdlLocation}" service="WsPortalVendas" port="WsPortalVendasSoap" address="https://vimobfgbrazil.megaerp.online/wsportalvendas/WsPortalVendas.asmx" />
+	</wsc:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="b9ce229a-fb04-46bb-a5ad-9982b521ce62" file="${env}.secure.properties" key="${secure.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+</mule>
